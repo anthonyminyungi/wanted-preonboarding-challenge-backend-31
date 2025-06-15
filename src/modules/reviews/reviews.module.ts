@@ -3,11 +3,12 @@ import { ReviewsService } from './reviews.service';
 import { ReviewsController } from './reviews.controller';
 import { DrizzleModule } from '~/database/drizzle.module';
 import { ReviewsRepository } from './reviews.repository';
+import { CommandHandlers } from './commands/handlers';
 
 @Module({
   imports: [DrizzleModule],
   controllers: [ReviewsController],
-  providers: [ReviewsService, ReviewsRepository],
+  providers: [ReviewsService, ReviewsRepository, ...CommandHandlers],
   exports: [ReviewsService],
 })
 export class ReviewsModule {}

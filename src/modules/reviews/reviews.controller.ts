@@ -1,5 +1,5 @@
 import { Controller, Body, Param, Delete, Put } from '@nestjs/common';
-import { ReviewsService } from './reviews.service';
+import { CommandBus } from '@nestjs/cqrs';
 import {
   UpdateReviewRequestDto,
   UpdateReviewResponseDto,
@@ -7,10 +7,11 @@ import {
 import { createSuccessResponse } from '~/common/utils/response.util';
 import { DeleteResponseDto } from '~/common/dto/response.dto';
 import { RandomUser } from '~/common/decorators/random-user.decorator';
+import { UpdateReviewCommand, DeleteReviewCommand } from './commands/impl';
 
 @Controller('reviews')
 export class ReviewsController {
-  constructor(private readonly reviewsService: ReviewsService) {}
+  constructor(private readonly commandBus: CommandBus) {}
 
   @Put(':id')
   async updateReview(
@@ -18,10 +19,9 @@ export class ReviewsController {
     @Body() dto: UpdateReviewRequestDto,
     @RandomUser() userId: number,
   ): Promise<UpdateReviewResponseDto> {
-    return createSuccessResponse(
-      await this.reviewsService.updateReview(id, userId, dto),
-      '리뷰가 성공적으로 수정되었습니다.',
-    );
+    const command = new UpdateReviewCommand(id, userId, dto);
+    const result = await this.commandBus.execute(command);
+    return createSuccessResponse(result, '리뷰가 성공적으로 수정되었습니다.');
   }
 
   @Delete(':id')
@@ -29,7 +29,8 @@ export class ReviewsController {
     @Param('id') id: number,
     @RandomUser() userId: number,
   ): Promise<DeleteResponseDto> {
-    await this.reviewsService.deleteReview(id, userId);
+    const command = new DeleteReviewCommand(id, userId);
+    await this.commandBus.execute(command);
     return createSuccessResponse(null, '리뷰가 성공적으로 삭제되었습니다.');
   }
 }

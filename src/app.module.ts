@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { CqrsModule } from '@nestjs/cqrs';
 import { z } from 'zod';
 
 import { ProductsModule } from '~/modules/products/products.module';
@@ -30,6 +31,7 @@ const envSchema = z.object({
     CategoriesModule,
     MainModule,
     DrizzleModule,
+    CqrsModule.forRoot(),
   ],
   controllers: [],
   providers: [],

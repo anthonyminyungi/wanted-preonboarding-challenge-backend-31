@@ -3,20 +3,30 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   Query,
   Put,
   ParseIntPipe,
 } from '@nestjs/common';
+import { CommandBus } from '@nestjs/cqrs';
 
 import { CreateReviewResponseDto } from '../reviews/dto/review.dto';
 import { CreateReviewRequestDto } from '../reviews/dto/review.dto';
 import { GetReviewsRequestDto } from '../reviews/dto/review.dto';
+import {
+  CreateProductCommand,
+  UpdateProductCommand,
+  DeleteProductCommand,
+  CreateProductOptionCommand,
+  UpdateProductOptionCommand,
+  DeleteProductOptionCommand,
+  CreateProductImageCommand,
+} from './commands/impl';
 import { ProductsService } from './products.service';
 import { GetReviewsResponseDto } from '../reviews/dto/review.dto';
 import { ReviewsService } from '../reviews/reviews.service';
+import { CreateReviewCommand } from '../reviews/commands/impl';
 import {
   createPaginatedData,
   createSuccessResponse,
@@ -47,8 +57,9 @@ import {
 @Controller('products')
 export class ProductsController {
   constructor(
-    private readonly productsService: ProductsService,
+    private readonly productsService: ProductsService, // Query 로직은 아직 Service에 있으므로 유지
     private readonly reviewsService: ReviewsService,
+    private readonly commandBus: CommandBus,
   ) {}
 
   @Get()
@@ -77,10 +88,8 @@ export class ProductsController {
   async createProduct(
     @Body() dto: CreateProductRequestDto,
   ): Promise<CreateProductResponseDto> {
-    return createSuccessResponse(
-      await this.productsService.createProduct(dto),
-      '상품이 성공적으로 등록되었습니다.',
-    );
+    const product = await this.commandBus.execute(new CreateProductCommand(dto));
+    return createSuccessResponse(product, '상품이 성공적으로 등록되었습니다.');
   }
 
   @Put(':id')
@@ -88,15 +97,15 @@ export class ProductsController {
     @Param('id') id: number,
     @Body() dto: UpdateProductRequestDto,
   ): Promise<UpdateProductResponseDto> {
-    return createSuccessResponse(
-      await this.productsService.updateProduct(id, dto),
-      '상품이 성공적으로 수정되었습니다.',
+    const product = await this.commandBus.execute(
+      new UpdateProductCommand(id, dto),
     );
+    return createSuccessResponse(product, '상품이 성공적으로 수정되었습니다.');
   }
 
   @Delete(':id')
   async deleteProduct(@Param('id') id: number): Promise<DeleteResponseDto> {
-    await this.productsService.deleteProduct(id);
+    await this.commandBus.execute(new DeleteProductCommand(id));
     return createSuccessResponse(null, '상품이 성공적으로 삭제되었습니다.');
   }
 
@@ -128,10 +137,9 @@ export class ProductsController {
     @RandomUser() userId: number,
     @Body() dto: CreateReviewRequestDto,
   ): Promise<CreateReviewResponseDto> {
-    return createSuccessResponse(
-      await this.reviewsService.createReview(productId, userId, dto),
-      '리뷰가 성공적으로 등록되었습니다.',
-    );
+    const command = new CreateReviewCommand(productId, userId, dto);
+    const result = await this.commandBus.execute(command);
+    return createSuccessResponse(result, '리뷰가 성공적으로 등록되었습니다.');
   }
 
   @Post(':id/options')
@@ -139,7 +147,9 @@ export class ProductsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateProductOptionRequestDto,
   ): Promise<CreateProductOptionResponseDto> {
-    const option = await this.productsService.createProductOption(id, dto);
+    const option = await this.commandBus.execute(
+      new CreateProductOptionCommand(id, dto),
+    );
     return {
       success: true,
       data: option,
@@ -153,10 +163,8 @@ export class ProductsController {
     @Param('optionId', ParseIntPipe) optionId: number,
     @Body() dto: UpdateProductOptionRequestDto,
   ): Promise<UpdateProductOptionResponseDto> {
-    const option = await this.productsService.updateProductOption(
-      id,
-      optionId,
-      dto,
+    const option = await this.commandBus.execute(
+      new UpdateProductOptionCommand(id, optionId, dto),
     );
     return {
       success: true,
@@ -170,7 +178,9 @@ export class ProductsController {
     @Param('id', ParseIntPipe) id: number,
     @Param('optionId', ParseIntPipe) optionId: number,
   ): Promise<DeleteResponseDto> {
-    await this.productsService.deleteProductOption(id, optionId);
+    await this.commandBus.execute(
+      new DeleteProductOptionCommand(id, optionId),
+    );
     return {
       success: true,
       data: null,
@@ -183,7 +193,9 @@ export class ProductsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateProductImageRequestDto,
   ): Promise<CreateProductImageResponseDto> {
-    const image = await this.productsService.createProductImage(id, dto);
+    const image = await this.commandBus.execute(
+      new CreateProductImageCommand(id, dto),
+    );
     return {
       success: true,
       data: image,
